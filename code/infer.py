@@ -59,7 +59,7 @@ def read_img(file):
 	return nimg
 
 parser = argparse.ArgumentParser(description='img rec comparing')
-parser.add_argument('--gpu-id',default=0,type=int,metavar='ID',
+parser.add_argument('--gpu-id',default=None,type=int,metavar='ID',
                     help='gpu id')
 parser.add_argument('--save-root',default=None,metavar='M',
                     help='save root')
@@ -113,7 +113,28 @@ else:
 
 skinWsNet=SkinWeightNet(4,True)
 net=M.ImageReconstructModel(skinWsNet,True)
-net.load_state_dict(torch.load('../models/garNet.pth',map_location='cpu'),True)
+state_dict = torch.load("../models/garNet.pth", map_location='cpu')
+new_state_dict = {}
+for k, v in state_dict.items():
+	if "lin" in k:
+		new_key = k.replace("lin", "lin_src")  # lin → lin_src
+		new_state_dict[new_key] = v
+
+        # lin_dstについても同じ重みを使いたいと仮定
+		new_key_dst = k.replace("lin", "lin_dst")
+		new_state_dict[new_key_dst] = v
+	elif "att_i" in k:
+		new_key = k.replace("att_i", "att_src")  # att_i → att_src
+		new_state_dict[new_key] = v
+	elif "att_j" in k:
+		new_key = k.replace("att_j", "att_dst")  # att_j → att_dst
+		new_state_dict[new_key] = v
+	else:
+		new_state_dict[k] = v  # その他のキーはそのままコピー
+
+
+# モデルに新しいstate dictをロード
+net.load_state_dict(new_state_dict, strict=False)
 net=net.to(device)
 net.eval()
 
